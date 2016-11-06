@@ -502,16 +502,16 @@ object Parsers {
      */
     def selectors(t: Tree, finish: Tree => Tree): Tree = {
       val t1 = finish(t)
-      if (t1 ne t) t1 else dotSelectors(selector(t), finish)
+      if (t1 ne t) t1 else manyDotSelectors(selector(t), finish)
     }
 
-    /** DotSelectors ::= { `.' Ident }
+    /** ManyDotSelectors ::= { `.' Ident }
      *
      *  Accept `.' separated identifiers acting as a selectors on given tree `t`.
      *  @param finish   An alternative parse in case the token following a `.' is not an identifier.
      *                  If the alternative does not apply, its tree argument is returned unchanged.
      */
-     def dotSelectors(t: Tree, finish: Tree => Tree = id) =
+     def manyDotSelectors(t: Tree, finish: Tree => Tree = id) =
       if (in.token == DOT) { in.nextToken(); selectors(t, finish) }
       else t
 
@@ -540,14 +540,14 @@ object Parsers {
         in.nextToken()
         val t = atPos(start) { This(name) }
         if (!thisOK && in.token != DOT) syntaxError("`.' expected")
-        dotSelectors(t, finish)
+        manyDotSelectors(t, finish)
       }
       def handleSuper(name: TypeName) = {
         in.nextToken()
         val mix = mixinQualifierOpt()
         val t = atPos(start) { Super(This(name), mix) }
         accept(DOT)
-        dotSelectors(selector(t), finish)
+        manyDotSelectors(selector(t), finish)
       }
       if (in.token == THIS) handleThis(tpnme.EMPTY)
       else if (in.token == SUPER) handleSuper(tpnme.EMPTY)
@@ -579,7 +579,7 @@ object Parsers {
     /** QualId ::= Id {`.' Id}
     */
     def qualId(): Tree =
-      dotSelectors(termIdent())
+      manyDotSelectors(termIdent())
 
     /** SimpleExpr    ::= literal
      *                  | symbol
@@ -1439,7 +1439,7 @@ object Parsers {
       case LPAREN =>
         atPos(in.offset) { makeTupleOrParens(inParens(patternsOpt())) }
       case LBRACE =>
-        dotSelectors(blockExpr())
+        manyDotSelectors(blockExpr())
       case XMLSTART =>
         xmlLiteralPattern()
       case _ =>
