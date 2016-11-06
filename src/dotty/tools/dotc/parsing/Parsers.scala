@@ -515,6 +515,14 @@ object Parsers {
       if (in.token == DOT) { in.nextToken(); selectors(t, finish) }
       else t
 
+    /** SomeDotSelectors ::=  `.' Ident { `.' Ident
+     *
+     *  Accept some (at least one) `.' separated identifiers acting as a selectors on given tree `t`.
+     *  @param finish   An alternative parse in case the token following a `.' is not an identifier.
+     *                  If the alternative does not apply, its tree argument is returned unchanged.
+     */
+    def someDotSelectors(t: Tree, finish: Tree => Tree) = { accept(DOT); selectors(t, finish) }
+
     private val id: Tree => Tree = x => x
 
     /** Path       ::= StableId
@@ -553,18 +561,6 @@ object Parsers {
         }
         else t
       }
-    }
-
-
-    /** PathRest ::=  `.' Ident { `.' Ident }
-      *
-      *  Accept some (at least one) `.' separated identifiers acting as a selectors on given tree `t`.
-      *  @param finish   An alternative parse in case the token following a `.' is not an identifier.
-      *                  If the alternative does not apply, its tree argument is returned unchanged.
-      */
-    def someDotSelectors(t: Tree, finish: Tree => Tree) = {
-      accept(DOT)
-      selectors(t, finish)
     }
 
     /** MixinQualifier ::= `[' Id `]'
