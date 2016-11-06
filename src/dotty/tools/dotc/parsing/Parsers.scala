@@ -494,7 +494,7 @@ object Parsers {
     def selector(t: Tree): Tree =
       atPos(t.pos.start, in.offset) { Select(t, ident()) }
 
-    /** Selectors ::= ident { `.' ident()
+    /** Selectors ::= Ident { `.' Ident }
      *
      *  Accept `.' separated identifiers acting as a selectors on given tree `t`.
      *  @param finish   An alternative parse in case the next token is not an identifier.
