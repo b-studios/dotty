@@ -505,7 +505,7 @@ object Parsers {
       if (t1 ne t) t1 else dotSelectors(selector(t), finish)
     }
 
-    /** Dotelectors ::= { `.' ident()
+    /** DotSelectors ::= { `.' Ident }
      *
      *  Accept `.' separated identifiers acting as a selectors on given tree `t`.
      *  @param finish   An alternative parse in case the token following a `.' is not an identifier.
