@@ -536,30 +536,38 @@ object Parsers {
      */
     def path(thisOK: Boolean, finish: Tree => Tree = id): Tree = {
       val start = in.offset
-      def handleThis(name: TypeName) = {
+      var tTpeName: TypeName = tpnme.EMPTY
+
+      def acceptThis(): Tree = {
         in.nextToken()
-        val t = atPos(start) { This(name) }
-        if (!thisOK && in.token != DOT) syntaxError("`.' expected")
-        manyDotSelectors(t, finish)
+        atPos(start) { This(tTpeName) }
       }
-      def handleSuper(name: TypeName) = {
+      def acceptSuper(): Tree = {
         in.nextToken()
         val mix = mixinQualifierOpt()
-        val t = atPos(start) { Super(This(name), mix) }
-        accept(DOT)
-        manyDotSelectors(selector(t), finish)
+        atPos(start) { Super(This(tTpeName), mix) }
       }
-      if (in.token == THIS) handleThis(tpnme.EMPTY)
-      else if (in.token == SUPER) handleSuper(tpnme.EMPTY)
-      else {
+      def thisSuperOrElse(alternative: => Tree): Tree =
+        if (in.token == THIS && !thisOK)
+          someDotSelectors(acceptThis(), finish)
+        else if (in.token == THIS)
+          manyDotSelectors(acceptThis(), finish)
+        else if (in.token == SUPER)
+          someDotSelectors(acceptSuper(), finish)
+        else
+          alternative
+
+      // `this' or `super' occur as first component of the path
+      thisSuperOrElse {
         val t = termIdent()
         if (in.token == DOT) {
           in.nextToken()
-          if (in.token == THIS) handleThis(t.name.toTypeName)
-          else if (in.token == SUPER) handleSuper(t.name.toTypeName)
-          else selectors(t, finish)
+          tTpeName = t.name.toTypeName
+          // `this' or `super' follow an identifier
+          thisSuperOrElse { selectors(t, finish) }
+        } else {
+          t
         }
-        else t
       }
     }
 
