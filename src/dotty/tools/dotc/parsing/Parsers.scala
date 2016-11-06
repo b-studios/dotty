@@ -519,6 +519,7 @@ object Parsers {
 
     /** Path       ::= StableId
      *              |  [Ident `.'] this
+     *              |  [Ident `.'] super [ `[' Id `]' ]
      *
      *  @param thisOK   If true, [Ident `.'] this is acceptable as the path.
      *                  If false, another selection is required after the `this`.
