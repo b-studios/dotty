@@ -494,7 +494,7 @@ object Parsers {
     def selector(t: Tree): Tree =
       atPos(t.pos.start, in.offset) { Select(t, ident()) }
 
-    /** Selectors ::= ident { `.' ident()
+    /** Selectors ::= Ident { `.' Ident }
      *
      *  Accept `.' separated identifiers acting as a selectors on given tree `t`.
      *  @param finish   An alternative parse in case the next token is not an identifier.
@@ -502,55 +502,72 @@ object Parsers {
      */
     def selectors(t: Tree, finish: Tree => Tree): Tree = {
       val t1 = finish(t)
-      if (t1 ne t) t1 else dotSelectors(selector(t), finish)
+      if (t1 ne t) t1 else manyDotSelectors(selector(t), finish)
     }
 
-    /** Dotelectors ::= { `.' ident()
+    /** ManyDotSelectors ::= { `.' Ident }
      *
      *  Accept `.' separated identifiers acting as a selectors on given tree `t`.
      *  @param finish   An alternative parse in case the token following a `.' is not an identifier.
      *                  If the alternative does not apply, its tree argument is returned unchanged.
      */
-     def dotSelectors(t: Tree, finish: Tree => Tree = id) =
+     def manyDotSelectors(t: Tree, finish: Tree => Tree = id) =
       if (in.token == DOT) { in.nextToken(); selectors(t, finish) }
       else t
+
+    /** SomeDotSelectors ::=  `.' Ident { `.' Ident }
+     *
+     *  Accept some (at least one) `.' separated identifiers acting as a selectors on given tree `t`.
+     *  @param finish   An alternative parse in case the token following a `.' is not an identifier.
+     *                  If the alternative does not apply, its tree argument is returned unchanged.
+     */
+    def someDotSelectors(t: Tree, finish: Tree => Tree) = { accept(DOT); selectors(t, finish) }
 
     private val id: Tree => Tree = x => x
 
     /** Path       ::= StableId
      *              |  [Ident `.'] this
+     *              |  [Ident `.'] super [ `[' Id `]' ]
      *
      *  @param thisOK   If true, [Ident `.'] this is acceptable as the path.
-     *                  If false, another selection is required aftre the `this`.
+     *                  If false, another selection is required after the `this`.
      *  @param finish   An alternative parse in case the token following a `.' is not an identifier.
      *                  If the alternative does not apply, its tree argument is returned unchanged.
      */
     def path(thisOK: Boolean, finish: Tree => Tree = id): Tree = {
       val start = in.offset
-      def handleThis(name: TypeName) = {
+
+      def acceptThis(name: TypeName): Tree = {
         in.nextToken()
-        val t = atPos(start) { This(name) }
-        if (!thisOK && in.token != DOT) syntaxError("`.' expected")
-        dotSelectors(t, finish)
+        atPos(start) { This(name) }
       }
-      def handleSuper(name: TypeName) = {
+      def acceptSuper(name: TypeName): Tree = {
         in.nextToken()
         val mix = mixinQualifierOpt()
-        val t = atPos(start) { Super(This(name), mix) }
-        accept(DOT)
-        dotSelectors(selector(t), finish)
+        atPos(start) { Super(This(name), mix) }
       }
-      if (in.token == THIS) handleThis(tpnme.EMPTY)
-      else if (in.token == SUPER) handleSuper(tpnme.EMPTY)
-      else {
+      def thisSuperOrElse(name: TypeName)(alternative: => Tree): Tree =
+        if (in.token == THIS && !thisOK)
+          someDotSelectors(acceptThis(name), finish)
+        else if (in.token == THIS)
+          manyDotSelectors(acceptThis(name), finish)
+        else if (in.token == SUPER)
+          someDotSelectors(acceptSuper(name), finish)
+        else
+          alternative
+
+      // `this' or `super' occur as first component of the path
+      thisSuperOrElse(tpnme.EMPTY) {
         val t = termIdent()
         if (in.token == DOT) {
           in.nextToken()
-          if (in.token == THIS) handleThis(t.name.toTypeName)
-          else if (in.token == SUPER) handleSuper(t.name.toTypeName)
-          else selectors(t, finish)
+          // `this' or `super' follow an identifier
+          thisSuperOrElse(t.name.toTypeName) {
+            selectors(t, finish)
+          }
+        } else {
+          t
         }
-        else t
       }
     }
 
@@ -570,7 +587,7 @@ object Parsers {
     /** QualId ::= Id {`.' Id}
     */
     def qualId(): Tree =
-      dotSelectors(termIdent())
+      manyDotSelectors(termIdent())
 
     /** SimpleExpr    ::= literal
      *                  | symbol
@@ -1430,7 +1447,7 @@ object Parsers {
       case LPAREN =>
         atPos(in.offset) { makeTupleOrParens(inParens(patternsOpt())) }
       case LBRACE =>
-        dotSelectors(blockExpr())
+        manyDotSelectors(blockExpr())
       case XMLSTART =>
         xmlLiteralPattern()
       case _ =>
