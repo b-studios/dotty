@@ -515,7 +515,7 @@ object Parsers {
       if (in.token == DOT) { in.nextToken(); selectors(t, finish) }
       else t
 
-    /** SomeDotSelectors ::=  `.' Ident { `.' Ident
+    /** SomeDotSelectors ::=  `.' Ident { `.' Ident }
      *
      *  Accept some (at least one) `.' separated identifiers acting as a selectors on given tree `t`.
      *  @param finish   An alternative parse in case the token following a `.' is not an identifier.
