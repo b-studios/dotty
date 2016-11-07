@@ -536,35 +536,35 @@ object Parsers {
      */
     def path(thisOK: Boolean, finish: Tree => Tree = id): Tree = {
       val start = in.offset
-      var tTpeName: TypeName = tpnme.EMPTY
 
-      def acceptThis(): Tree = {
+      def acceptThis(name: TypeName): Tree = {
         in.nextToken()
-        atPos(start) { This(tTpeName) }
+        atPos(start) { This(name) }
       }
-      def acceptSuper(): Tree = {
+      def acceptSuper(name: TypeName): Tree = {
         in.nextToken()
         val mix = mixinQualifierOpt()
-        atPos(start) { Super(This(tTpeName), mix) }
+        atPos(start) { Super(This(name), mix) }
       }
-      def thisSuperOrElse(alternative: => Tree): Tree =
+      def thisSuperOrElse(name: TypeName)(alternative: => Tree): Tree =
         if (in.token == THIS && !thisOK)
-          someDotSelectors(acceptThis(), finish)
+          someDotSelectors(acceptThis(name), finish)
         else if (in.token == THIS)
-          manyDotSelectors(acceptThis(), finish)
+          manyDotSelectors(acceptThis(name), finish)
         else if (in.token == SUPER)
-          someDotSelectors(acceptSuper(), finish)
+          someDotSelectors(acceptSuper(name), finish)
         else
           alternative
 
       // `this' or `super' occur as first component of the path
-      thisSuperOrElse {
+      thisSuperOrElse(tpnme.EMPTY) {
         val t = termIdent()
         if (in.token == DOT) {
           in.nextToken()
-          tTpeName = t.name.toTypeName
           // `this' or `super' follow an identifier
-          thisSuperOrElse { selectors(t, finish) }
+          thisSuperOrElse(t.name.toTypeName) {
+            selectors(t, finish)
+          }
         } else {
           t
         }
