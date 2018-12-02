@@ -2195,10 +2195,11 @@ object Parsers {
           }
         } else EmptyTree
       lhs match {
-        case (id @ Ident(name: TermName)) :: Nil if isBind =>
-          BindDef(name, tpt, rhs)
+        case pat :: Nil if isBind =>
+          BindDef(pat, tpt, rhs)
         case (id @ Ident(name: TermName)) :: Nil =>
           ValDef(name, tpt, rhs).withMods(mods).setComment(in.getDocComment(start))
+        case _ if isBind => ???
         case _ =>
           PatDef(mods, lhs, tpt, rhs)
       }

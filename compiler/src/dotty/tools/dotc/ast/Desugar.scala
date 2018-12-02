@@ -870,9 +870,13 @@ object desugar {
    */
   def makeBind(stats: List[Tree], expr: Tree)(implicit ctx: Context): (List[Tree], Tree) = {
 
-    def makeLambda(name: TermName,  tpt: Tree, body: Tree): Tree = {
-      val param = ValDef(name, tpt, EmptyTree).withMods(Modifiers(Param))
-      Function(param :: Nil, body)
+    def makeLambda(pat: Tree,  tpt: Tree, body: Tree): Tree = pat match {
+      case id @ Ident(name: TermName) =>
+        val param = ValDef(name, tpt, EmptyTree).withMods(Modifiers(Param))
+        Function(param :: Nil, body)
+      // TODO add tpt here?
+      case _ =>
+        makeCaseLambda(CaseDef(pat, EmptyTree, body) :: Nil)
     }
 
     stats.foldRight[(List[Tree], Tree)]((Nil, expr)) {
