@@ -875,16 +875,12 @@ object desugar {
       Function(param :: Nil, body)
     }
 
-    stats match {
-      case Nil => (Nil, expr)
-      case BindDef(name, tpt, rhs) :: rest => makeBind(rest, expr) match {
-        case (stats, expr) =>
-          val body = Block(stats, expr)
-          (Nil, Apply(Select(rhs, nme.flatMap), makeLambda(name, tpt, body)))
-      }
-      case otherDef :: rest => makeBind(rest, expr) match {
-        case (stats, expr) => (otherDef :: stats, expr)
-      }
+    stats.foldRight[(List[Tree], Tree)]((Nil, expr)) {
+      case (BindDef(name, tpt, rhs), (stats, expr)) =>
+        val body = Block(stats, expr)
+        (Nil, Apply(Select(rhs, nme.flatMap), makeLambda(name, tpt, body)))
+      case (other, (stats, expr)) =>
+        (other :: stats, expr)
     }
   }
 
