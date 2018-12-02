@@ -858,8 +858,38 @@ object desugar {
     case EmptyTree =>
       cpy.Block(tree)(tree.stats,
         unitLiteral withPos (if (tree.stats.isEmpty) tree.pos else tree.pos.endPos))
-    case _ =>
-      tree
+    case _ => makeBind(tree.stats, tree.expr) match {
+      case (stats, expr) => cpy.Block(tree)(stats, expr)
+    }
+  }
+
+  /** Desugar monadic binds into flatMap calls.
+   * { val name <- expr1; stats; expr2 }
+   *    ==>
+   * expr1.flatMap { name => { stats; expr2 } }
+   */
+  def makeBind(stats: List[Tree], expr: Tree)(implicit ctx: Context): (List[Tree], Tree) = {
+
+    def makeLambda(pat: Tree, tpt: Tree, mods: Modifiers, body: Tree): Tree = pat match {
+      case id @ Ident(name: TermName) =>
+        val param = ValDef(name, tpt, EmptyTree)
+        if (mods is Implicit)
+          new FunctionWithMods(param.withFlags(Param | Implicit) :: Nil, body, Modifiers(Implicit))
+        else
+          Function(param.withFlags(Param) :: Nil, body)
+      // TODO add tpt here?
+      // TODO support matching AND implicit mod
+      case _ =>
+        makeCaseLambda(CaseDef(pat, EmptyTree, body) :: Nil)
+    }
+
+    stats.foldRight[(List[Tree], Tree)]((Nil, expr)) {
+      case (BindDef(mods, name, tpt, rhs), (stats, expr)) =>
+        val body = Block(stats, expr)
+        (Nil, Apply(Select(rhs, nme.flatMap), makeLambda(name, tpt, mods, body)))
+      case (other, (stats, expr)) =>
+        (other :: stats, expr)
+    }
   }
 
   /** Translate infix operation expression
@@ -1193,6 +1223,10 @@ object desugar {
     }
 
     val desugared = tree match {
+      case Block(stats, expr) => makeBind(stats, expr) match {
+        case (Nil, expr) => expr
+        case (stats, expr) => Block(stats, expr)
+      }
       case SymbolLit(str) =>
         Literal(Constant(scala.Symbol(str)))
       case Quote(expr) =>
