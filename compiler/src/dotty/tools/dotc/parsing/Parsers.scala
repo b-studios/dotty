@@ -2182,8 +2182,8 @@ object Parsers {
       val rhs =
         if (isBind) {
           accept(LARROW)
-          // TODO support implicit
-          assert(!(mods is (Mutable | Lazy | Implicit)))
+          // TODO add better error messages
+          assert(!(mods is (Mutable | Lazy)))
           expr()
         } else if (tpt.isEmpty || in.token == EQUALS) {
           accept(EQUALS)
@@ -2196,7 +2196,7 @@ object Parsers {
         } else EmptyTree
       lhs match {
         case pat :: Nil if isBind =>
-          BindDef(pat, tpt, rhs)
+          BindDef(mods, pat, tpt, rhs)
         case (id @ Ident(name: TermName)) :: Nil =>
           ValDef(name, tpt, rhs).withMods(mods).setComment(in.getDocComment(start))
         case _ if isBind => ???
