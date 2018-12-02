@@ -2170,6 +2170,7 @@ object Parsers {
     }
 
     /** PatDef ::= Pattern2 {`,' Pattern2} [`:' Type] `=' Expr
+     *  BindDef ::= Pattern2 {`,' Pattern2} [`:' Type] `<-' Expr
      *  VarDef ::= PatDef | id {`,' id} `:' Type `=' `_'
      *  ValDcl ::= id {`,' id} `:' Type
      *  VarDcl ::= id {`,' id} `:' Type
@@ -2177,8 +2178,14 @@ object Parsers {
     def patDefOrDcl(start: Offset, mods: Modifiers): Tree = atPos(start, nameStart) {
       val lhs = commaSeparated(pattern2)
       val tpt = typedOpt()
+      val isBind = in.token == LARROW
       val rhs =
-        if (tpt.isEmpty || in.token == EQUALS) {
+        if (isBind) {
+          accept(LARROW)
+          // TODO support implicit
+          assert(!(mods is (Mutable | Lazy | Implicit)))
+          expr()
+        } else if (tpt.isEmpty || in.token == EQUALS) {
           accept(EQUALS)
           if (in.token == USCORE && !tpt.isEmpty && (mods is Mutable) &&
               (lhs.toList forall (_.isInstanceOf[Ident]))) {
@@ -2188,9 +2195,11 @@ object Parsers {
           }
         } else EmptyTree
       lhs match {
-        case (id @ Ident(name: TermName)) :: Nil => {
+        case (id @ Ident(name: TermName)) :: Nil if isBind =>
+          BindDef(name, tpt, rhs)
+        case (id @ Ident(name: TermName)) :: Nil =>
           ValDef(name, tpt, rhs).withMods(mods).setComment(in.getDocComment(start))
-        } case _ =>
+        case _ =>
           PatDef(mods, lhs, tpt, rhs)
       }
     }

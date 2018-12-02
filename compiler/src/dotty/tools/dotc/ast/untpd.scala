@@ -91,6 +91,9 @@ object untpd extends Trees.Instance[Untyped] with UntypedTreeInfo {
   case class PatDef(mods: Modifiers, pats: List[Tree], tpt: Tree, rhs: Tree) extends DefTree
   case class DependentTypeTree(tp: List[Symbol] => Type) extends Tree
 
+  // Tree for monadic bind in blocks
+  case class BindDef(name: TermName, tpt: Tree, rhs: Tree) extends TermTree
+
   @sharable object EmptyTypeIdent extends Ident(tpnme.EMPTY) with WithoutTypeOrPos[Untyped] {
     override def isEmpty: Boolean = true
   }
